@@ -2,6 +2,11 @@ from typing import Optional
 
 from core.ai.tools.base import ToolBaseClass, ToolError
 
+from core.tts import TTS
+from core.wakeword import WakeWord
+
+from core.ai.ai import AI
+
 
 class TimerTool(ToolBaseClass):
     def __init__(self, *args, **kwargs):
@@ -21,7 +26,7 @@ class TimerTool(ToolBaseClass):
                 },
             }
         }
-        super().__init__(cfg, *args, pre_match=r"^set\s(?:[a-z]*\s)time", **kwargs)
+        super().__init__(cfg, r"^set\s(?:[a-z]*\s)time", *args, **kwargs)
 
     def get_time_str(self, seconds: int) -> str:
         hours = int(seconds / (60*60))
@@ -54,6 +59,7 @@ class TimerTool(ToolBaseClass):
         return f"Setting a timer for {self.get_time_str(sec)}."
 
 
-    def call(self, query: str) -> str:
-        args = self.call_ai_tools(query)
-        return self.get_result(**args)
+    def call(self, query: str, ww: WakeWord, tts: TTS):
+        if args := self.parse_args(query, ww, tts):
+            result = self.get_result(**args)
+            tts.speak(f"{result}")

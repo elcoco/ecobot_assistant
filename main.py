@@ -9,10 +9,20 @@ import time
 from core.wakeword import WakeWord
 from core.tts import TTS
 from core.stt import STT
-from core.ai.ai import AI
+from core.ai.ai import pre_match_tools
 
-from core.ai import tools
+from core.ai.tools.base import ToolBaseClass, ToolError
+from core.ai.tools.tool_calculate import CalcTool
+from core.ai.tools.tool_convert import ConvertTool
+from core.ai.tools.tool_music import MusicTool, MediaControlTool
+from core.ai.tools.tool_timer import TimerTool
+from core.ai.tools.tool_lookup import LookupNewsTool
 
+ai_model = "llama3.2"
+tools: list[ToolBaseClass] = [ LookupNewsTool(ai_model),
+                               MediaControlTool(ai_model),
+                               ConvertTool(ai_model),
+                               TimerTool(ai_model) ]
 
 class App():
     def __init__(self) -> None:
@@ -25,71 +35,39 @@ class App():
                 if ww.is_triggered():
                     return True
 
-    def conversation_mode(self):
-        messages = []
-
-        while True:
-            with tts("listening"):
-                tts.wait()
-                
-            # Blocking call
-            text = ". ".join(stt.listen())
-
-            try:
-                with ww, ai(text):
-                    while not ai.is_finished():
-                        if not (sentence := ai.get_sentence()):
-                            time.sleep(.1)
-                            continue
-
-                        if self.speak(sentence, tts, ww):
-                            break
-
-            except KeyboardInterrupt:
-                break
-        ...
-
     def run(self):
 
-        #stt = STT(Path("assets/stt_models/vosk-model-en-us-0.22"))
         stt = STT(Path("assets/stt_models/vosk-model-small-en-us-0.15"))
-
-        #tts = TTS(Path("assets/tts_models/en_US-amy-low.onnx"))
         tts = TTS(Path("assets/tts_models/en_US-lessac-medium.onnx"))
-        #tts = TTS(Path("assets/tts_models/en_US-lessac-high.onnx"))
-
-        ai = AI()
+        ww = WakeWord(Path("assets/ww_models/hey_jarvis_v0.1.onnx"), "hey_jarvis_v0.1")
 
         while True:
-            ww = WakeWord(Path("assets/ww_models/hey_jarvis_v0.1.onnx"), "hey_jarvis_v0.1")
 
-            print("Ready...")
+            print("Waiting for wakeword...")
 
             try:
-                with ww:
-                    ww.wait()
+                ww.wait()
             except KeyboardInterrupt:
                 print("exit by interrupt")
                 break
 
-            with tts("listening"):
-                tts.wait()
-                
-            # Blocking call
-            text = ". ".join(stt.listen())
-
             try:
-                with ww, ai(text, tools):
-                    while not ai.is_finished():
-                        if not (sentence := ai.get_sentence()):
-                            time.sleep(.1)
-                            continue
+                tts.speak("listening")
+                    
+                # Blocking call
+                query = ". ".join(stt.listen())
 
-                        if self.speak(sentence, tts, ww):
-                            break
+                if not (tool := next(pre_match_tools(tools, query), None)):
+                    tts.speak("No tool found to handle your request")
+                    continue
+
+                tool.call(query, ww, tts)
 
             except KeyboardInterrupt:
+                print("exit by interrupt")
                 break
+            except ToolError as e:
+                print(e)
 
 
 if __name__ == "__main__":

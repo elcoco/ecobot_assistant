@@ -1,11 +1,17 @@
 from typing import Optional
 import json
+import time
+from pathlib import Path
 
 from duckduckgo_search import DDGS
+from duckduckgo_search.exceptions import DuckDuckGoSearchException
+
+from core.tts import TTS
+from core.wakeword import WakeWord
 
 from core.ai.tools.base import ToolBaseClass, ToolError
-from core.ai import AI
 #from core.ai.ai_thread import AIThread
+from core.ai.ai import AI
 
 
 region_map = {
@@ -32,7 +38,8 @@ region_map = {
     "France":		      "fr-fr",
     "Germany":		      "de-de",
     "Greece":		      "gr-el",
-    " Hong Kong":	      "hk-tz",
+    "Holland":	          "nl-nl",
+    "Hong Kong":	      "hk-tz",
     "Hungary":		      "hu-hu",
     "India":		      "in-en",
     "Indonesia":	      "id-id",
@@ -93,21 +100,56 @@ class LookupNewsTool(ToolBaseClass):
                         "region":   {"type": "string", "description": "Country of origin" },
                         #"amount":   {"type": "int", "description": "amount of news items" },
                     },
-                    "required": [],
+                    "required": ["subject", "region"],
                 },
             }
         }
-        super().__init__(cfg, r"^look\s+up\s(?:\w*\s)news", *args, **kwargs)
+        super().__init__(cfg, r"^look\s?up\s(?:.*)news", *args, **kwargs)
 
     def get_news(self, subject: str="", region: str="wt-wt"):
         # TODO: come up with a way to have a conversation by using the aithread.
         #       Solve the circular import problem
-        results = DDGS().news(keywords=subject, region=region, safesearch="off", timelimit="m", max_results=20)
-        return json.dumps(results)
+        if not subject:
+            subject = "news"
 
-    def call(self, query: str):
-        args = self.call_ai_tools(query)
-        results = self.get_news(**args)
-        for l in results:
-            print(json.dumps(l, indent=4))
-        return ""
+        region_code = region_map.get(region.capitalize(), "")
+        print(f"Searchin news: subject={subject}, region={region_code}")
+        return DDGS().news(keywords=subject, region=region_code, safesearch="off", timelimit="m", max_results=5)
+
+    def parse_json(self, input):
+        """ Parse news json into a list of messages that can be fed into AI """
+        return [{"role": "user", "content": f"{item['title']}: {item['body']}"} for item in input]
+
+
+    def call(self, query: str, ww: WakeWord, tts: TTS):
+        print("Start tool call")
+
+        tts.speak("Searching for the latest news.")
+        
+        if not (args := self.parse_args(query, ww, tts)):
+            return
+
+        try:
+            news = self.get_news(**args)
+        except DuckDuckGoSearchException as e:
+            tts.speak(f"Failed to connect to duck duck go, are you connected to the internet?")
+            raise ToolError(str(e))
+
+        context = self.parse_json(news)
+
+        # Lookup ai and feed chunks of text to TTS while being interruptable by wakeword
+        ai = AI(self._ai_model)
+        with ww, ai("Give an overview of the latest news events in non-markdown text", context=context) as t:
+            while not t.is_finished():
+                if ww.is_triggered():
+                    break
+
+                if not (sentence := t.get_sentence()):
+                    time.sleep(.1)
+                    continue
+
+                with tts(sentence):
+                    if tts.wait(ww.is_triggered):
+                        break
+
+        print("exit tool call")

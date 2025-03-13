@@ -2,6 +2,9 @@ from typing import Optional
 
 from core.ai.tools.base import ToolBaseClass, ToolError
 
+from core.tts import TTS
+from core.wakeword import WakeWord
+
 from core.utils import run_cmd
 
 class MusicTool(ToolBaseClass):
@@ -51,7 +54,7 @@ class MediaControlTool(ToolBaseClass):
         }
         super().__init__(cfg, r"^(pause|start|toggle|stop)\s(play|plane|plain)", *args, skip_ai=True, **kwargs)
 
-    def call(self, query: str):
+    def call(self, query: str, ww: WakeWord, tts: TTS):
         match query.split()[0]:
             case "start":
                 command = "play"
@@ -62,11 +65,11 @@ class MediaControlTool(ToolBaseClass):
             case "stop":
                 command = "stop"
             case _:
-                raise ToolError(f"{query} is an unknown command")
+                tts.speak("{query} is an unknown command.")
+                raise ToolError(f"{query} is an unknown command.")
 
         try:
             run_cmd(["playerctl", command])
         except OSError as e:
+            tts.speak(f"Failed to execute command '{command}'. Is player c t l installed?")
             raise ToolError(f"Failed to execute command '{command}', I received error: {e}")
-
-        return f"Executed command: {command}"

@@ -78,5 +78,6 @@ class WakeWord():
         self._t.join()
 
     def wait(self):
-        while not self.is_triggered():
-            time.sleep(0.1)
+        with self:
+            while not self.is_triggered():
+                time.sleep(0.1)

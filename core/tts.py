@@ -29,7 +29,6 @@ class TTSThread(StoppableThread):
         outdata[:] = data
 
     def run(self):
-        # TODO: listen to wakeword while playing and stop if encountered
         sd.default.samplerate = self._model.config.sample_rate
         sd.default.device = 'pulse'
         sd.default.channels = 1
@@ -48,18 +47,10 @@ class TTSThread(StoppableThread):
                     break
 
                 self._out_buf.put(np.frombuffer(chunk, dtype=np.int16))
-                #if interrupt_cb and interrupt_cb():
-                #    print("Stream interrupted by wakeword")
-                #    break
 
             while stream.active and not self.is_stopped():
-                #if interrupt_cb and interrupt_cb():
-                #    print("Stream interrupted by wakeword")
-                #    break
-
                 time.sleep(.1)
 
-            #print("Stream ended")
         self.stop()
 
 
@@ -83,9 +74,17 @@ class TTS():
         self._t.stop()
         self._t.join()
 
+    def speak(self, text: str):
+        """ Blocking speak """
+        with self(text):
+            self.wait()
+
     def is_speaking(self):
         return not self._t.is_stopped()
 
-    def wait(self):
+    def wait(self, interrupt_cb=None):
+        """ If interrupt cb is provided, method will return True if interrupted """
         while self.is_speaking():
+            if interrupt_cb and interrupt_cb():
+                return True
             time.sleep(.1)

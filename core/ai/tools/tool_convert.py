@@ -1,5 +1,9 @@
 from core.ai.tools.base import ToolBaseClass, ToolError
 
+from core.tts import TTS
+from core.wakeword import WakeWord
+from core.ai.ai import AI
+
 class ConvertTool(ToolBaseClass):
     def __init__(self, *args, **kwargs):
         cfg = {
@@ -18,7 +22,7 @@ class ConvertTool(ToolBaseClass):
                 },
             }
         }
-        super().__init__(cfg, *args, pre_match=r"^convert", **kwargs)
+        super().__init__(cfg, r"^convert", *args, **kwargs)
 
         self._type_map = [[ "ounce", "pound", "gram", "kilo" ],
                           [ "milimeter", "centimeter", "decimeter", "meter", "kilometer", "inch", "yard", "mile" ],
@@ -75,7 +79,7 @@ class ConvertTool(ToolBaseClass):
             if res_from and res_to:
                 return True
 
-    def call(self, amount: str, unit_from: str, unit_to: str) -> str:
+    def convert(self, amount: str, unit_from: str, unit_to: str) -> str:
         if not self.check_compatible(unit_from, unit_to):
             raise ToolError(f"I'm affraid I can't do that, {unit_from} and {unit_to} are incompatible units")
 
@@ -84,3 +88,8 @@ class ConvertTool(ToolBaseClass):
         amount_dest = self.metric_to_unit(amount_metric, unit_to)
 
         return f"{amount} {unit_from} is {round(amount_dest, self._precision)} {unit_to}"
+
+    def call(self, query: str, ww: WakeWord, tts: TTS):
+        if args := self.parse_args(query, ww, tts):
+            result = self.convert(**args)
+            tts.speak(f"{result}")

@@ -5,18 +5,16 @@ from ollama import Client
 
 from core.utils import StoppableThread
 
-from core.ai.tools.base import ToolBaseClass, ToolError
-from core.ai import model
 
-
-class AIThread(StoppableThread):
-    def __init__(self, query, history: list[dict], tools: Optional[list[ToolBaseClass]]=None, host: str="127.0.0.1", port: int=11434) -> None:
+class AIThreadBaseClass(StoppableThread):
+    def __init__(self, query: str, model: str, context: list[dict], tools: Optional[list]=None, host: str="127.0.0.1", port: int=11434) -> None:
         super().__init__()
         self._q = Queue()
         self._query = query
+        self._model = model
 
-        # Keep a history of messages
-        self._history = history
+        # Keep a context of messages
+        self._context = context
 
         self._tools = tools or []
         self._client = Client(host=f"{host}:{port}")
@@ -31,12 +29,32 @@ class AIThread(StoppableThread):
     def sanitize(self, buf: str):
         return buf.replace("\n", "")
 
-    def call(self, query: str, history=None):
+    def has_data(self):
+        return not self._q.empty()
+
+    def is_finished(self):
+        return self.is_stopped() and not self.has_data()
+
+    def get_sentence(self):
+        return self._q.get()
+
+    def run(self):
+        """ Finds sentences in ai output and puts them in queue """
+
+
+class AIThread(AIThreadBaseClass):
+    def __init__(self, *args, fmt: Optional[dict]=None, **kvargs):
+        super().__init__(*args, **kvargs)
+
+        # The format specifies the used layout of a json file that needs to be parsed by the ai
+        self._fmt = fmt
+
+    def call(self, query: str, context=None):
         msg = {"role": "user", "content": query}
 
-        if history:
-            history.append(msg)
-            messages = history
+        if context:
+            context.append(msg)
+            messages = context
         else:
             messages = [msg]
 
@@ -44,7 +62,7 @@ class AIThread(StoppableThread):
         response = ""
         print(messages)
 
-        stream = self._client.chat( model=model,
+        stream = self._client.chat( model=self._model,
                                     messages=messages,
                                     stream = True )
         for chunk in stream:
@@ -66,31 +84,48 @@ class AIThread(StoppableThread):
                     response += (". " + self.sanitize(sentence_buf))
                 break
 
-        if history:
-            history.append({"role": "assistant", "content": response})
+        if context:
+            context.append({"role": "assistant", "content": response})
         self.stop()
         print("exit")
 
-    def call_tools(self, query: str, tools: list[ToolBaseClass]):
-        for tool in tools:
-            return tool.call(query)
-
-    def has_data(self):
-        return not self._q.empty()
-
-    def get_sentence(self):
-        return self._q.get()
-
     def run(self):
-        """ Finds sentences in ai output and puts them in queue """
         print("Lookup AI")
 
-        tools_filtered = [t for t in self._tools if t._pattern and t.pre_match(self._query)]
-        if tools_filtered:
-            result = self.call_tools(self._query, tools_filtered)
-            self._q.put(result)
-        else:
-            self.call(self._query)
-
+        self.call(self._query, self._context)
         self.stop()
-        #self.call(self._query, self._history)
+
+
+class AIToolThread(AIThreadBaseClass):
+    def __init__(self, *args, **kvargs):
+        super().__init__(*args, **kvargs)
+        self._args = {}
+
+    def call(self, query: str, tools: list):
+        """ Call ai and parse query into arguments """
+        response = self._client.chat(model=self._model,
+                                   messages=[{"role": "user", "content": query}],
+                                   tools=tools )
+
+        print(response)
+        if response.message.tool_calls:
+
+            # only handle fi9rst match
+            tc = response.message.tool_calls[0]
+
+            self._args = tc.function.arguments
+            return
+
+        elif response.message.content:
+            self._q.put(response.message.content)
+            return
+
+        self._q.put(f"No tools found for query")
+
+    def get_args(self):
+        return self._args
+
+    def run(self):
+        self.call(self._query, self._tools)
+        self.stop()
+

@@ -1,50 +1,24 @@
 from typing import Optional
 import re
+from pathlib import Path
+
+from ollama import Client
+
+from core.tts import TTS
+from core.wakeword import WakeWord
+from core.ai.ai import AI
 
 
 class ToolError(Exception):
     ...
 
 class ToolBaseClass():
-    def __init__(self, cfg: dict, pre_match: Optional[str]=None, skip_ai: bool=False, ai_client=False, ai_model: Optional[str]=None):
+    def __init__(self, cfg: dict, pre_match: str, ai_model: str, skip_ai: bool=False):
         self._config = cfg
 
         # Pre match checks request against given reggex
-        if pre_match:
-            self._pattern = re.compile(pre_match)
-        else:
-            self._pattern = None
-
-        # Indicate if it is needed to let ai parse query into parameters.
-        # eg. some calls like "stop playing" or "pause playing" don't need any arguments and
-        # skipping ai parsing makes the process a lot faster
-        self.skip_ai = skip_ai
-
-        # Pointer to ai object
-        self._ai_client = ai_client
+        self._pattern = re.compile(pre_match)
         self._ai_model = ai_model
-
-    def call_ai_tools(self, query: str) -> dict:
-        """ Call ai and parse query into arguments """
-        response = self._ai_client.chat(model=self._ai_model,
-                                   messages=[{"role": "user", "content": query}],
-                                   tools=[self.get_cfg()],
-                                   )
-
-        print(response)
-        if response.message.tool_calls:
-
-            tc = response.message.tool_calls[0]
-            if tc.function.name != self.name:
-                raise ToolError("No suitable tools found!")
-
-            return tc.function.arguments
-
-        elif response.message.content:
-            raise ToolError(response.message.content)
-
-        raise ToolError(f"No tools found for query")
-
 
     @property
     def name(self):
@@ -53,12 +27,27 @@ class ToolBaseClass():
     def get_cfg(self):
         return self._config
 
-    def call(self, *args, **kwargs):
-        """ Needs to be implemented when subclassing """
-
     def pre_match(self, text):
         """ Check patern against the query so that we can see what tool to use """
         if self._pattern:
             return re.match(self._pattern, text)
 
         return True
+
+    def parse_args(self, query: str, ww: WakeWord, tts: TTS) -> str:
+        """ Parse query into arguments """
+        ai = AI(self._ai_model)
+        with ww, ai(query, tools=[self.get_cfg()]) as t:
+            while not t.is_finished():
+                if ww.is_triggered():
+                    return
+
+        if not (args := t.get_args()):
+            tts.speak(f"{self.name} tool failed to run!")
+            raise ToolError("Tool failed to run!")
+
+        return args
+
+    def call(self, *args, **kwargs):
+        """ Needs to be implemented when subclassing """
+
