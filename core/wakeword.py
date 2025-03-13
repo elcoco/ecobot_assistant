@@ -61,7 +61,7 @@ class WakeWord():
         # Load pre-trained openwakeword models
 
     def __enter__(self):
-        self._model = Model(wakeword_models=[str(self._model_path)], inference_framework=self._inference_fw)
+        self._model = Model(wakeword_models=[str(self._model_path)], inference_framework=self._inference_fw, enable_speex_noise_suppression=True)
         self._t = WWThread(self._model, self._model_name)
         self._t.start()
         return self

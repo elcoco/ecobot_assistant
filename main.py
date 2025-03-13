@@ -25,16 +25,6 @@ tools: list[ToolBaseClass] = [ LookupNewsTool(ai_model),
                                TimerTool(ai_model) ]
 
 class App():
-    def __init__(self) -> None:
-        ...
-
-    def speak(self, text: str, tts, ww):
-        """ Returns True if interrupted by wakeword """
-        with tts(text):
-            while tts.is_speaking():
-                if ww.is_triggered():
-                    return True
-
     def run(self):
 
         stt = STT(Path("assets/stt_models/vosk-model-small-en-us-0.15"))
