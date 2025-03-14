@@ -2,7 +2,7 @@ from typing import Optional
 
 from core.ai.tools.base import ToolBaseClass, ToolError
 
-from core.ai.ai import AI
+from core import tts, stt, ww
 
 
 class TimerTool(ToolBaseClass):
@@ -23,7 +23,7 @@ class TimerTool(ToolBaseClass):
                 },
             }
         }
-        super().__init__(cfg, r"^set\s(?:[a-z]*\s)time", *args, **kwargs)
+        super().__init__(cfg, r"^set\s([a-z]*\s)?time", *args, **kwargs)
 
     def get_time_str(self, seconds: int) -> str:
         hours = int(seconds / (60*60))
