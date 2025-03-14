@@ -18,6 +18,7 @@ from core.ai.tools.tool_timer import TimerTool
 from core.ai.tools.tool_lookup import LookupNewsTool
 from core.ai.tools.tool_kodi import KodiTool
 from core.ai.tools.tool_conversation import ConversationTool
+from core.ai.tools.tool_time import TimeTool
 
 #ai_model = "llama3.2:1b"
 #ai_model = "phi4-mini"
@@ -28,5 +29,6 @@ tools: list[ToolBaseClass] = [ LookupNewsTool(ai_model),
                                ConvertTool(ai_model),
                                CalcTool(ai_model),
                                ConversationTool(ai_model),
+                               TimeTool(ai_model),
                                KodiTool(ai_model, host="http://192.168.178.248:8080/jsonrpc"),
                                TimerTool(ai_model) ]

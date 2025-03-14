@@ -17,7 +17,7 @@ op_map_reversed = {
 }
 
 class CalcTool(ToolBaseClass):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, precision: int=2, **kwargs):
         cfg = {
             "type": "function",
             "function": {
@@ -35,6 +35,7 @@ class CalcTool(ToolBaseClass):
             }
         }
         super().__init__(cfg, r"^calculate", *args, **kwargs)
+        self._precision = precision
 
     def calc(self, n0: str, n1: str, op: str) -> str:
         try:
@@ -60,7 +61,7 @@ class CalcTool(ToolBaseClass):
             case _:
                 return "Unsupported operator"
 
-        return f"{n0} {op_map[op]} {n1} is {result}"
+        return f"{n0} {op_map[op]} {n1} is {round(result, self._precision)}"
 
     def call(self, query: str):
         if not (args := self.parse_args(query, ww, tts)):
