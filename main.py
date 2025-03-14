@@ -17,12 +17,19 @@ from core.ai.tools.tool_convert import ConvertTool
 from core.ai.tools.tool_music import MusicTool, MediaControlTool
 from core.ai.tools.tool_timer import TimerTool
 from core.ai.tools.tool_lookup import LookupNewsTool
+from core.ai.tools.tool_kodi import KodiTool
+
 
 ai_model = "llama3.2"
+#ai_model = "llama3.2:1b"
+#ai_model = "phi4-mini"
 tools: list[ToolBaseClass] = [ LookupNewsTool(ai_model),
                                MediaControlTool(ai_model),
                                ConvertTool(ai_model),
+                               KodiTool(ai_model, host="http://192.168.178.248:8080/jsonrpc"),
                                TimerTool(ai_model) ]
+
+# TODO: add words like kodi and toggle to vosk vocabulary so it will bias towards these words
 
 class App():
     def run(self):
@@ -51,7 +58,7 @@ class App():
                     tts.speak("No tool found to handle your request")
                     continue
 
-                tool.call(query, ww, tts)
+                tool.call(query, stt, ww, tts)
 
             except KeyboardInterrupt:
                 print("exit by interrupt")

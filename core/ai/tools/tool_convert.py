@@ -22,7 +22,7 @@ class ConvertTool(ToolBaseClass):
                 },
             }
         }
-        super().__init__(cfg, r"^convert", *args, **kwargs)
+        super().__init__(cfg, r"^(convert|comfort)", *args, **kwargs)
 
         self._type_map = [[ "ounce", "pound", "gram", "kilo" ],
                           [ "milimeter", "centimeter", "decimeter", "meter", "kilometer", "inch", "yard", "mile" ],

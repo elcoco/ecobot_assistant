@@ -100,7 +100,7 @@ class LookupNewsTool(ToolBaseClass):
                         "region":   {"type": "string", "description": "Country of origin" },
                         #"amount":   {"type": "int", "description": "amount of news items" },
                     },
-                    "required": ["subject", "region"],
+                    "required": [],
                 },
             }
         }
