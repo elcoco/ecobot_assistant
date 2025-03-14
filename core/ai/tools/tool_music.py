@@ -1,9 +1,7 @@
 from typing import Optional
 
+from core import tts, stt, ww
 from core.ai.tools.base import ToolBaseClass, ToolError
-
-from core.tts import TTS
-from core.wakeword import WakeWord
 
 from core.utils import run_cmd
 
@@ -54,7 +52,7 @@ class MediaControlTool(ToolBaseClass):
         }
         super().__init__(cfg, r"^(pause|start|toggle|stop)\s(play|plane|plain)", *args, skip_ai=True, **kwargs)
 
-    def call(self, query: str, ww: WakeWord, tts: TTS):
+    def call(self, query: str):
         match query.split()[0]:
             case "start":
                 command = "play"

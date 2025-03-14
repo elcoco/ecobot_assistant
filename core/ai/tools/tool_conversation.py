@@ -2,17 +2,16 @@ from typing import Optional
 import json
 import time
 from pathlib import Path
+import re
 
 from duckduckgo_search import DDGS
 from duckduckgo_search.exceptions import DuckDuckGoSearchException
 
-from core.tts import TTS
-from core.stt import STT
-from core.wakeword import WakeWord
-
 from core.ai.tools.base import ToolBaseClass, ToolError
 #from core.ai.ai_thread import AIThread
 from core.ai.ai import AI
+
+from core import tts, stt, ww
 
 
 class ConversationTool(ToolBaseClass):
@@ -31,14 +30,20 @@ class ConversationTool(ToolBaseClass):
         }
         super().__init__(cfg, r"^start\sconversation", *args, **kwargs)
 
-    def call(self, query: str, stt: STT, ww: WakeWord, tts: TTS):
-        print("Start tool call")
-
+    def call(self, query: str):
         tts.speak("What can I help you with?")
         context = []
 
-        while query.lower() != "stop":
+        while True:
             text = []
+            query = ". ".join(stt.listen())
+
+            if re.match(r"^stop.*$", query.lower()):
+                tts.speak("Ending conversation.")
+                break
+            elif not query:
+                continue
+
 
             # Lookup ai and feed chunks of text to TTS while being interruptable by wakeword
             ai = AI(self._ai_model)
@@ -59,5 +64,3 @@ class ConversationTool(ToolBaseClass):
 
                 context.append({ "role": "user", "content": query })
                 context.append({"role": "assistant", "content": ".\n".join(text)})
-
-        print("exit tool call")

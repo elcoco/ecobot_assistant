@@ -6,12 +6,10 @@ from pathlib import Path
 from duckduckgo_search import DDGS
 from duckduckgo_search.exceptions import DuckDuckGoSearchException
 
-from core.tts import TTS
-from core.wakeword import WakeWord
-
 from core.ai.tools.base import ToolBaseClass, ToolError
 #from core.ai.ai_thread import AIThread
 from core.ai.ai import AI
+from core import tts, stt, ww
 
 
 region_map = {
@@ -121,7 +119,7 @@ class LookupNewsTool(ToolBaseClass):
         return [{"role": "user", "content": f"{item['title']}: {item['body']}"} for item in input]
 
 
-    def call(self, query: str, ww: WakeWord, tts: TTS):
+    def call(self, query: str):
         print("Start tool call")
 
         tts.speak("Searching for the latest news.")

@@ -1,8 +1,7 @@
 from core.ai.tools.base import ToolBaseClass, ToolError
 
-from core.tts import TTS
-from core.wakeword import WakeWord
-from core.ai.ai import AI
+from core import tts, stt, ww
+
 
 class ConvertTool(ToolBaseClass):
     def __init__(self, *args, **kwargs):
@@ -89,7 +88,7 @@ class ConvertTool(ToolBaseClass):
 
         return f"{amount} {unit_from} is {round(amount_dest, self._precision)} {unit_to}"
 
-    def call(self, query: str, ww: WakeWord, tts: TTS):
+    def call(self, query: str):
         if args := self.parse_args(query, ww, tts):
             result = self.convert(**args)
             tts.speak(f"{result}")

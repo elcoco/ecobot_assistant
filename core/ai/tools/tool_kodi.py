@@ -2,12 +2,12 @@ from typing import Optional
 
 from kodijson import Kodi, PLAYER_VIDEO
 
-
-from core.tts import TTS
 from core.wakeword import WakeWord
 
 from core.ai.ai import AI
 from core.ai.tools.base import ToolBaseClass, ToolError
+
+from core import tts, stt, ww
 
 from core.utils import run_cmd
 
@@ -35,7 +35,7 @@ class KodiTool(ToolBaseClass):
         self._username = username
         self._password = password
 
-    def call(self, query: str, ww: WakeWord, tts: TTS):
+    def call(self, query: str):
         kodi = Kodi(self._host, self._username, self._password)
 
         match query.split()[1]:
